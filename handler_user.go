@@ -2,12 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/Aryan354.RssServer/internal/auth"
 	"github.com/Aryan354.RssServer/internal/database"
 	"github.com/google/uuid"
 )
@@ -45,20 +43,7 @@ func (apiCfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request
 
 //function to handle authenticated user
 
-func (apiCfg *apiConfig) handleGetUserAPI(w http.ResponseWriter, r *http.Request) {
-
-	api_key, error := auth.GetAPIKey(r.Header)
-	if error != nil {
-		respondWithError(w, 403, fmt.Sprintf("Auth error: %v", error))
-		return
-	}
-
-	user, err := apiCfg.DB.GetUserByAPIKey(r.Context(), api_key)
-
-	if err != nil {
-		respondWithError(w, 403, fmt.Sprintf("Couldn't get user %v", err))
-		return
-	}
+func (apiCfg *apiConfig) handleGetUserAPI(w http.ResponseWriter, r *http.Request, user database.User) {
 
 	respondWithJson(w, 200, UserReturner(user))
 }

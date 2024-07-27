@@ -20,14 +20,14 @@ type apiConfig struct {
 }
 
 func main() {
-	fmt.Println("Hello")
+	fmt.Println("Welcome to the RSS server")
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
 	port := os.Getenv("PORT")
-	fmt.Println(port)
+	fmt.Printf("The RSS server has initiated on port: %v", port)
 	if port == "" {
 		log.Fatal("PORT has not been configured. Please recheck")
 	}
@@ -44,7 +44,7 @@ func main() {
 	}
 	defer connStr.Close()
 
-	// Assuming you have a function `database.New` to initialize your database connection
+	// defining our connection to dataabase
 	apiCfg := apiConfig{
 		DB: database.New(connStr),
 	}
@@ -64,11 +64,16 @@ func main() {
 
 	// API versioning
 	v1Router := chi.NewRouter()
-	// GET request to check health (i.e., ready)
+	//all the routers defined
+
 	v1Router.Get("/ready", handler_ready)
 	v1Router.Get("/error", handleError)
 	v1Router.Post("/users", apiCfg.handleCreateUser)
-	v1Router.Get("/users", apiCfg.handleGetUserAPI)
+	v1Router.Get("/users", apiCfg.middlewareAuth(apiCfg.handleGetUserAPI))
+	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handleCreateFeed))
+	v1Router.Get("/feeds", apiCfg.handleGetFeeds)
+
+	//mounting api versoning
 	router.Mount("/v1", v1Router)
 
 	server := &http.Server{
