@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Aryan354.RssServer/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -20,9 +21,17 @@ type apiConfig struct {
 }
 
 func main() {
-	fmt.Println("Welcome to the RSS server")
-	err := godotenv.Load(".env")
+
+	feed, err := urlToFeed("https://feeds.bbci.co.uk/news/world/rss.xml")
+
 	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(feed)
+
+	fmt.Println("Welcome to the RSS server")
+	error := godotenv.Load(".env")
+	if error != nil {
 		log.Fatal("Error loading .env file")
 	}
 
@@ -42,12 +51,15 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to the database:", err)
 	}
-	defer connStr.Close()
 
+	db_conn := database.New(connStr)
 	// defining our connection to dataabase
 	apiCfg := apiConfig{
-		DB: database.New(connStr),
+		DB: db_conn,
 	}
+
+	// running the concurrent RSS servers
+	go startScraping(db_conn, 10, time.Minute)
 
 	// Define the server
 	router := chi.NewRouter()
@@ -62,9 +74,10 @@ func main() {
 		AllowCredentials: false,
 	}))
 
-	// API versioning
+	// new chi router
 	v1Router := chi.NewRouter()
-	//all the routers defined
+
+	//all the endpoints defined
 
 	v1Router.Get("/ready", handler_ready)
 	v1Router.Get("/error", handleError)
@@ -72,6 +85,9 @@ func main() {
 	v1Router.Get("/users", apiCfg.middlewareAuth(apiCfg.handleGetUserAPI))
 	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handleCreateFeed))
 	v1Router.Get("/feeds", apiCfg.handleGetFeeds)
+	v1Router.Post("/feed_follows", apiCfg.middlewareAuth(apiCfg.handleCreateFeedFollow))
+	v1Router.Get("/feed_follows", apiCfg.middlewareAuth(apiCfg.handleGetFeedFollows))
+	v1Router.Delete("/feed_follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.handleDeleteFeedFollow))
 
 	//mounting api versoning
 	router.Mount("/v1", v1Router)
